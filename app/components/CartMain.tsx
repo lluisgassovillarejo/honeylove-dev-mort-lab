@@ -4,7 +4,7 @@ import type {CartApiQueryFragment} from 'storefrontapi.generated';
 import {useAside} from '~/components/Aside';
 import {CartLineItem} from '~/components/CartLineItem';
 import {CartSummary} from './CartSummary';
-import {useFeatureIsValue} from '~/lib/growthbook';
+import {CartProgressBar, CartProgressBarMini} from './CartProgressBar';
 
 export type CartLayout = 'page' | 'aside';
 
@@ -13,27 +13,15 @@ export type CartMainProps = {
   layout: CartLayout;
 };
 
-// Define the three variants for the AB test
-const AB_TEST_VARIANTS = ['variantA', 'variantB', 'variantC'] as const;
-type ABTestVariant = typeof AB_TEST_VARIANTS[number];
-
 /**
  * The main cart component that displays the cart items and summary.
  * It is used by both the /cart route and the cart aside dialog.
+ * Now includes Cart Perks progress bar functionality.
  */
 export function CartMain({layout, cart: originalCart}: CartMainProps) {
   // The useOptimisticCart hook applies pending actions to the cart
   // so the user immediately sees feedback when they modify the cart.
   const cart = useOptimisticCart(originalCart);
-
-  // AB test: ab2025-01 with three variants
-  // The new feature flag system will automatically persist the variant for the session
-  const ab202501 = useFeatureIsValue<ABTestVariant>('ab2025-01');
-  
-  // Get the current variant, ensuring it's one of the three valid variants
-  const abVariant: ABTestVariant = AB_TEST_VARIANTS.includes(ab202501) 
-    ? ab202501 
-    : AB_TEST_VARIANTS[0]; // Fallback to variantA if invalid
 
   const linesCount = Boolean(cart?.lines?.nodes?.length || 0);
   const withDiscount =
@@ -44,21 +32,36 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
 
   return (
     <div className={className}>
-      {/* AB Test variant display - this will now persist across page refreshes */}
-      <div className="ab-test-banner" style={{
-        marginBottom: 16,
-        padding: 12,
-        backgroundColor: getVariantColor(abVariant),
-        color: 'white',
-        borderRadius: 8,
-        textAlign: 'center',
-        fontSize: '14px'
-      }}>
-        <strong>AB Test ab2025-01:</strong> {abVariant}
-        <br />
-        <small>This variant will persist for your entire session</small>
-      </div>
-      
+      {/* Cart Perks Progress Bar - Use Mini for sidebar, full for page */}
+      {layout === 'aside' ? (
+        <CartProgressBarMini cart={cart} />
+      ) : (
+        <CartProgressBar cart={cart} />
+      )}
+
+      {/* Debug: Cart items count and free items count */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-yellow-100 p-2 mb-4 text-xs">
+          <div>
+            <strong>Debug Cart Info:</strong>
+          </div>
+          <div>Total lines: {cart?.lines?.nodes?.length || 0}</div>
+          <div>Total quantity: {cart?.totalQuantity || 0}</div>
+          <div>
+            Free items:{' '}
+            {cart?.lines?.nodes?.filter((line) =>
+              line.attributes?.some(
+                (attr) => attr.key === '_FREE_ITEM' && attr.value === 'true',
+              ),
+            ).length || 0}
+          </div>
+          <div>
+            Subtotal: {cart?.cost?.subtotalAmount?.currencyCode}{' '}
+            {cart?.cost?.subtotalAmount?.amount}
+          </div>
+        </div>
+      )}
+
       <CartEmpty hidden={linesCount} layout={layout} />
       <div className="cart-details">
         <div aria-labelledby="cart-lines">
@@ -72,22 +75,6 @@ export function CartMain({layout, cart: originalCart}: CartMainProps) {
       </div>
     </div>
   );
-}
-
-/**
- * Helper function to get variant-specific styling
- */
-function getVariantColor(variant: ABTestVariant): string {
-  switch (variant) {
-    case 'variantA':
-      return '#3b82f6'; // Blue
-    case 'variantB':
-      return '#10b981'; // Green
-    case 'variantC':
-      return '#f59e0b'; // Amber
-    default:
-      return '#6b7280'; // Gray fallback
-  }
 }
 
 function CartEmpty({
