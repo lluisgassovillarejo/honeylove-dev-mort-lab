@@ -56,3 +56,5 @@ storefrontapi.generated.d.ts
 
 # Ignore changelog if desired
 # CHANGELOG.md
+
+.shopify

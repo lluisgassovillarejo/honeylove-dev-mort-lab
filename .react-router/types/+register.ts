@@ -68,12 +68,12 @@ type Params = {
     "locale"?: string;
     "code": string;
   };
-  "/:locale?/sitemap.xml": {
-    "locale"?: string;
-  };
   "/:locale?/pages/:handle": {
     "locale"?: string;
     "handle": string;
+  };
+  "/:locale?/sitemap.xml": {
+    "locale"?: string;
   };
   "/:locale?/blogs": {
     "locale"?: string;
