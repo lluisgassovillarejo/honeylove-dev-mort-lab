@@ -105,24 +105,30 @@ export default function Product() {
     <div className="product">
       <ProductImage image={selectedVariant?.image} />
       <div className="product-main">
-        <h1>{title}</h1>
-        <ProductPrice
-          price={selectedVariant?.price}
-          compareAtPrice={selectedVariant?.compareAtPrice}
-        />
-        <br />
-        <ProductForm
-          productOptions={productOptions}
-          selectedVariant={selectedVariant}
-        />
-        <br />
-        <br />
-        <p>
-          <strong>Description</strong>
-        </p>
-        <br />
-        <div dangerouslySetInnerHTML={{__html: descriptionHtml}} />
-        <br />
+        <div className="product-info">
+          <h1 className="product-title">{title}</h1>
+          <ProductPrice
+            price={selectedVariant?.price}
+            compareAtPrice={selectedVariant?.compareAtPrice}
+          />
+        </div>
+        
+        <div className="product-form-section">
+          <ProductForm
+            product={product}
+            productOptions={productOptions}
+            selectedVariant={selectedVariant}
+            allVariants={product.variants?.nodes || []}
+          />
+        </div>
+        
+        <div className="product-description">
+          <h2 className="description-title">Description</h2>
+          <div 
+            className="description-content"
+            dangerouslySetInnerHTML={{__html: descriptionHtml}} 
+          />
+        </div>
       </div>
       <Analytics.ProductView
         data={{
@@ -212,6 +218,11 @@ const PRODUCT_FRAGMENT = `#graphql
     }
     adjacentVariants (selectedOptions: $selectedOptions) {
       ...ProductVariant
+    }
+    variants(first: 100) {
+      nodes {
+        ...ProductVariant
+      }
     }
     seo {
       description
