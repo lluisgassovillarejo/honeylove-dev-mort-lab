@@ -1,0 +1,58 @@
+# Node.js
+node_modules/
+
+# Build output
+/dist/
+/.next/
+/.vercel/
+/build/
+/public/build/
+
+# Vite
+.vite/
+
+# Hydrogen
+.hydrogen/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env files
+.env*
+
+# VS Code
+.vscode/
+
+# Misc
+*.local
+*.cursor
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Hydrogen Storefront
+hydrogen-storefront/
+
+# Public
+public/
+
+# Others
+.idea/
+*.swp
+
+# Ignore generated files
+customer-accountapi.generated.d.ts
+storefrontapi.generated.d.ts
+
+# Ignore changelog if desired
+# CHANGELOG.md
