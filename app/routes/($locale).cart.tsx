@@ -15,6 +15,47 @@ export const meta: MetaFunction = () => {
 
 export const headers: HeadersFunction = ({actionHeaders}) => actionHeaders;
 
+// Helper function to validate remaining bundles
+function validateRemainingBundles(lines: any[]) {
+  // Handle empty or null lines array
+  if (!lines || !Array.isArray(lines) || lines.length === 0) {
+    return {
+      hasValidBundles: false,
+      totalValidBundles: 0,
+      allBundleCounts: {},
+    };
+  }
+
+  const bundles: Record<string, number> = {};
+
+  // Count items per bundle ID (accounting for quantity)
+  lines.forEach((line: any) => {
+    if (!line || !line.attributes) return; // Skip invalid lines
+    
+    const bundleId = line.attributes?.find(
+      (attr: any) => attr.key === '_BUNDLE_ID',
+    )?.value;
+    const bundleName = line.attributes?.find(
+      (attr: any) => attr.key === '_BUNDLE_NAME',
+    )?.value;
+
+    if (bundleId && bundleName === 'men-t-shirt') {
+      // Count the quantity of items in this line, not just the line itself
+      const quantity = line.quantity || 1;
+      bundles[bundleId] = (bundles[bundleId] || 0) + quantity;
+    }
+  });
+
+  // Check if any bundle has exactly 3 items (valid bundle)
+  const validBundles = Object.values(bundles).filter((count) => count === 3);
+
+  return {
+    hasValidBundles: validBundles.length > 0,
+    totalValidBundles: validBundles.length,
+    allBundleCounts: bundles,
+  };
+}
+
 export async function action({request, context}: ActionFunctionArgs) {
   const {cart} = context;
 
@@ -32,12 +73,148 @@ export async function action({request, context}: ActionFunctionArgs) {
   switch (action) {
     case CartForm.ACTIONS.LinesAdd:
       result = await cart.addLines(inputs.lines);
+
+      // Auto-apply BUNDLE20 discount if bundle items are detected
+      const hasBundleItems = inputs.lines?.some((line: any) =>
+        line.attributes?.some((attr: any) => attr.key === '_BUNDLE_NAME'),
+      );
+
+      if (hasBundleItems && result.cart) {
+        // Check if BUNDLE20 is already applied
+        const hasBundleDiscount = result.cart.discountCodes?.some(
+          (code: any) => code.code === 'BUNDLE20',
+        );
+
+        if (!hasBundleDiscount) {
+          // Apply BUNDLE20 discount code automatically
+          try {
+            const discountResult = await cart.updateDiscountCodes(['BUNDLE20']);
+            if (discountResult.cart) {
+              result = discountResult;
+            }
+          } catch (error) {
+            console.error('Failed to apply BUNDLE20 discount:', error);
+            // Continue without discount if it fails
+          }
+        }
+      }
       break;
     case CartForm.ACTIONS.LinesUpdate:
       result = await cart.updateLines(inputs.lines);
+
+      // Validate bundles after quantity updates
+      if (result.cart && result.cart.lines && result.cart.lines.nodes) {
+        const remainingBundles = validateRemainingBundles(
+          result.cart.lines.nodes,
+        );
+        const shouldHaveBundleDiscount = remainingBundles.hasValidBundles;
+        const currentlyHasBundleDiscount = result.cart.discountCodes?.some(
+          (code: any) => code.code === 'BUNDLE20',
+        );
+
+        if (currentlyHasBundleDiscount && !shouldHaveBundleDiscount) {
+          try {
+            const otherDiscounts =
+              result.cart.discountCodes
+                ?.filter((code: any) => code.code !== 'BUNDLE20')
+                .map((code: any) => code.code) || [];
+
+            const discountResult =
+              await cart.updateDiscountCodes(otherDiscounts);
+            if (discountResult.cart) {
+              result = discountResult;
+            }
+          } catch (error) {
+            console.error(
+              'Failed to remove BUNDLE20 discount after update:',
+              error,
+            );
+          }
+        } else if (!currentlyHasBundleDiscount && shouldHaveBundleDiscount) {
+          try {
+            const currentDiscounts =
+              result.cart.discountCodes?.map((code: any) => code.code) || [];
+            const discountResult = await cart.updateDiscountCodes([
+              ...currentDiscounts,
+              'BUNDLE20',
+            ]);
+            if (discountResult.cart) {
+              result = discountResult;
+            }
+          } catch (error) {
+            console.error(
+              'Failed to add BUNDLE20 discount after update:',
+              error,
+            );
+          }
+        }
+      }
       break;
     case CartForm.ACTIONS.LinesRemove:
+      // Log removal for debugging
+      console.log('[Cart Server] Removing lines:', inputs.lineIds);
+      
       result = await cart.removeLines(inputs.lineIds);
+      
+      // Log result for debugging  
+      console.log('[Cart Server] Remove result:', {
+        success: !!result.cart,
+        remainingLines: result.cart?.lines?.nodes?.length || 0,
+        errors: result.errors,
+        warnings: result.warnings
+      });
+
+      // Validate remaining bundles after removal
+      if (result.cart && result.cart.lines && result.cart.lines.nodes) {
+        const remainingBundles = validateRemainingBundles(
+          result.cart.lines.nodes,
+        );
+        
+        console.log('[Cart Server] Bundle validation after remove:', remainingBundles);
+        
+        const shouldHaveBundleDiscount = remainingBundles.hasValidBundles;
+        const currentlyHasBundleDiscount = result.cart.discountCodes?.some(
+          (code: any) => code.code === 'BUNDLE20',
+        );
+
+        // Remove BUNDLE20 if no valid bundles remain
+        if (currentlyHasBundleDiscount && !shouldHaveBundleDiscount) {
+          try {
+            console.log('[Cart Server] Removing BUNDLE20 discount - no valid bundles remain');
+            const otherDiscounts =
+              result.cart.discountCodes
+                ?.filter((code: any) => code.code !== 'BUNDLE20')
+                .map((code: any) => code.code) || [];
+
+            const discountResult =
+              await cart.updateDiscountCodes(otherDiscounts);
+            if (discountResult.cart) {
+              result = discountResult;
+              console.log('[Cart Server] Successfully removed BUNDLE20 discount');
+            }
+          } catch (error) {
+            console.error('[Cart Server] Failed to remove BUNDLE20 discount:', error);
+          }
+        }
+        // Add BUNDLE20 if valid bundles exist but discount is missing
+        else if (!currentlyHasBundleDiscount && shouldHaveBundleDiscount) {
+          try {
+            console.log('[Cart Server] Adding BUNDLE20 discount - valid bundles found');
+            const currentDiscounts =
+              result.cart.discountCodes?.map((code: any) => code.code) || [];
+            const discountResult = await cart.updateDiscountCodes([
+              ...currentDiscounts,
+              'BUNDLE20',
+            ]);
+            if (discountResult.cart) {
+              result = discountResult;
+              console.log('[Cart Server] Successfully added BUNDLE20 discount');
+            }
+          } catch (error) {
+            console.error('[Cart Server] Failed to add BUNDLE20 discount:', error);
+          }
+        }
+      }
       break;
     case CartForm.ACTIONS.DiscountCodesUpdate: {
       const formDiscountCode = inputs.discountCode;

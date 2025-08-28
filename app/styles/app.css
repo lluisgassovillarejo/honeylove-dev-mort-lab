@@ -288,6 +288,132 @@ button.reset:hover:not(:has(> *)) {
   align-items: center;
   display: flex;
 }
+
+/* Bundle grouping styles */
+.bundle-group {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.bundle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  border-radius: 8px 8px 0 0;
+  gap: 1rem;
+}
+
+.bundle-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bundle-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.bundle-title h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.bundle-savings-badge {
+  background: #10b981;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.bundle-incomplete-badge {
+  background: #f59e0b;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.bundle-colors {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.bundle-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.bundle-toggle {
+  background: #374151;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bundle-toggle:hover {
+  background: #4b5563;
+}
+
+.bundle-items {
+  padding: 0;
+}
+
+.bundle-items-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bundle-items-list .cart-line {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: white;
+}
+
+.bundle-items-list .cart-line:last-child {
+  border-bottom: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.bundle-item {
+  position: relative;
+}
+
+.bundle-indicator {
+  margin-bottom: 0.5rem;
+}
+
+.bundle-badge {
+  background: #3b82f6;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
 /*
 * --------------------------------------------------
 * components/Search
@@ -426,35 +552,102 @@ button.reset:hover:not(:has(> *)) {
 */
 .product {
   display: grid;
-  @media (min-width: 45em) {
+  padding: 1rem;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  
+  @media (min-width: 48em) {
     grid-template-columns: 1fr 1fr;
-    grid-gap: 4rem;
+    gap: 3rem;
+    padding: 2rem;
   }
-}
-
-.product h1 {
-  margin-top: 0;
+  
+  @media (min-width: 64em) {
+    gap: 4rem;
+    padding: 2rem 0;
+  }
 }
 
 .product-image img {
   height: auto;
   width: 100%;
+  border-radius: 8px;
 }
 
 .product-main {
-  align-self: start;
-  position: sticky;
-  top: 6rem;
-}
-
-.product-price-on-sale {
   display: flex;
-  grid-gap: 0.5rem;
+  flex-direction: column;
+  gap: 2rem;
+  
+  @media (min-width: 48em) {
+    align-self: start;
+    position: sticky;
+    top: 2rem;
+  }
 }
 
-.product-price-on-sale s {
-  opacity: 0.5;
+.product-info {
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1.5rem;
 }
+
+.product-title {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 1rem 0;
+  color: #111827;
+  
+  @media (min-width: 48em) {
+    font-size: 2.25rem;
+  }
+}
+
+.product-form-section {
+  /* Already styled by ProductForm component */
+}
+
+.product-description {
+  /* Description styling */
+}
+
+.description-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #374151;
+}
+
+.description-content {
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+.description-content h1,
+.description-content h2,
+.description-content h3,
+.description-content h4,
+.description-content h5,
+.description-content h6 {
+  margin: 1.5rem 0 0.75rem 0;
+  color: #374151;
+}
+
+.description-content p {
+  margin: 0 0 1rem 0;
+}
+
+.description-content ul,
+.description-content ol {
+  margin: 0 0 1rem 1.5rem;
+}
+
+.description-content li {
+  margin: 0.25rem 0;
+}
+
+/* Product price styles moved to component */
 
 .product-options-grid {
   display: flex;
@@ -520,3 +713,5 @@ button.reset:hover:not(:has(> *)) {
 .account-logout {
   display: inline-block;
 }
+
+/* Bundle items styling removed - now using Tailwind only */

@@ -1,3 +1,4 @@
+import React from 'react';
 import type {CartLineUpdateInput} from '@shopify/hydrogen/storefront-api-types';
 import type {CartLayout} from '~/components/CartMain';
 import {CartForm, Image, type OptimisticCartLine} from '@shopify/hydrogen';
@@ -20,25 +21,39 @@ export function CartLineItem({
   layout: CartLayout;
   line: CartLine;
 }) {
-  const {id, merchandise} = line;
+  const {id, merchandise, attributes} = line;
   const {product, title, image, selectedOptions} = merchandise;
   const lineItemUrl = useVariantUrl(product.handle, selectedOptions);
   const {close} = useAside();
 
+  // Check if this line is part of a bundle
+  const bundleName = attributes?.find(attr => attr.key === '_BUNDLE_NAME')?.value;
+  const bundleId = attributes?.find(attr => attr.key === '_BUNDLE_ID')?.value;
+  const isBundle = bundleName && bundleId;
+
   return (
-    <li key={id} className="cart-line">
+    <li key={id} className={`flex gap-3 ${isBundle ? 'bg-transparent' : 'border-b border-gray-100 pb-4 mb-4'}`}>
       {image && (
-        <Image
-          alt={title}
-          aspectRatio="1/1"
-          data={image}
-          height={100}
-          loading="lazy"
-          width={100}
-        />
+        <div className="flex-shrink-0">
+          <Image
+            alt={title}
+            aspectRatio="1/1"
+            data={image}
+            height={60}
+            loading="lazy"
+            width={60}
+            className="rounded-md object-cover"
+          />
+        </div>
       )}
 
-      <div>
+      <div className="flex-1 min-w-0">
+        {isBundle && (
+          <div className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-1">
+            Bundle Item
+          </div>
+        )}
+        
         <Link
           prefetch="intent"
           to={lineItemUrl}
@@ -47,22 +62,28 @@ export function CartLineItem({
               close();
             }
           }}
+          className="block group"
         >
-          <p>
-            <strong>{product.title}</strong>
+          <p className="text-sm font-medium text-gray-900 group-hover:text-blue-600 transition-colors duration-200 truncate">
+            {product.title}
           </p>
         </Link>
-        <ProductPrice price={line?.cost?.totalAmount} />
-        <ul>
+        
+        <div className="mt-1">
+          <ProductPrice price={line?.cost?.totalAmount} />
+        </div>
+        
+        <div className="mt-1 flex flex-wrap gap-2 text-xs text-gray-500">
           {selectedOptions.map((option) => (
-            <li key={option.name}>
-              <small>
-                {option.name}: {option.value}
-              </small>
-            </li>
+            <span key={option.name} className="inline-flex items-center">
+              {option.name}: {option.value}
+            </span>
           ))}
-        </ul>
-        <CartLineQuantity line={line} />
+        </div>
+        
+        <div className="mt-2">
+          <CartLineQuantity line={line} />
+        </div>
       </div>
     </li>
   );
@@ -83,28 +104,66 @@ function CartLineQuantity({line}: {line: CartLine}) {
     <div className="cart-line-quantity">
       <small>Quantity: {quantity} &nbsp;&nbsp;</small>
       <CartLineUpdateButton lines={[{id: lineId, quantity: prevQuantity}]}>
-        <button
-          aria-label="Decrease quantity"
-          disabled={quantity <= 1 || !!isOptimistic}
-          name="decrease-quantity"
-          value={prevQuantity}
-        >
-          <span>&#8722; </span>
-        </button>
+        {(fetcher) => {
+          const isUpdating = fetcher.state !== 'idle';
+          const isDisabled = quantity <= 1 || !!isOptimistic || isUpdating;
+          
+          return (
+            <button
+              aria-label={isUpdating ? "Updating quantity..." : "Decrease quantity"}
+              disabled={isDisabled}
+              name="decrease-quantity"
+              value={prevQuantity}
+              className={`w-8 h-8 flex items-center justify-center border rounded transition-colors duration-200 ${
+                isDisabled
+                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              {isUpdating ? (
+                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>&#8722;</span>
+              )}
+            </button>
+          );
+        }}
       </CartLineUpdateButton>
       &nbsp;
       <CartLineUpdateButton lines={[{id: lineId, quantity: nextQuantity}]}>
-        <button
-          aria-label="Increase quantity"
-          name="increase-quantity"
-          value={nextQuantity}
-          disabled={!!isOptimistic}
-        >
-          <span>&#43;</span>
-        </button>
+        {(fetcher) => {
+          const isUpdating = fetcher.state !== 'idle';
+          const isDisabled = !!isOptimistic || isUpdating;
+          
+          return (
+            <button
+              aria-label={isUpdating ? "Updating quantity..." : "Increase quantity"}
+              name="increase-quantity"
+              value={nextQuantity}
+              disabled={isDisabled}
+              className={`w-8 h-8 flex items-center justify-center border rounded transition-colors duration-200 ${
+                isDisabled
+                  ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600'
+              }`}
+            >
+              {isUpdating ? (
+                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <span>&#43;</span>
+              )}
+            </button>
+          );
+        }}
       </CartLineUpdateButton>
       &nbsp;
-      <CartLineRemoveButton lineIds={[lineId]} disabled={!!isOptimistic} />
+      <CartLineRemoveButton 
+        lineIds={[lineId]} 
+        disabled={!!isOptimistic}
+        onRemoveComplete={() => {
+          console.log(`[Cart] Removed line item: ${lineId}`);
+        }}
+      />
     </div>
   );
 }
@@ -117,9 +176,11 @@ function CartLineQuantity({line}: {line: CartLine}) {
 function CartLineRemoveButton({
   lineIds,
   disabled,
+  onRemoveComplete,
 }: {
   lineIds: string[];
   disabled: boolean;
+  onRemoveComplete?: () => void;
 }) {
   return (
     <CartForm
@@ -128,9 +189,39 @@ function CartLineRemoveButton({
       action={CartForm.ACTIONS.LinesRemove}
       inputs={{lineIds}}
     >
-      <button disabled={disabled} type="submit">
-        Remove
-      </button>
+      {(fetcher) => {
+        const isRemoving = fetcher.state !== 'idle';
+        const isButtonDisabled = disabled || isRemoving;
+        
+        // Call completion callback when done
+        React.useEffect(() => {
+          if (fetcher.state === 'idle' && fetcher.data && onRemoveComplete) {
+            onRemoveComplete();
+          }
+        }, [fetcher.state, fetcher.data, onRemoveComplete]);
+        
+        return (
+          <button 
+            disabled={isButtonDisabled} 
+            type="submit"
+            className={`text-sm px-2 py-1 rounded transition-colors duration-200 ${
+              isButtonDisabled
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-red-600 hover:text-red-800 hover:bg-red-50'
+            }`}
+            aria-label={isRemoving ? 'Removing item...' : 'Remove item'}
+          >
+            {isRemoving ? (
+              <span className="flex items-center gap-1">
+                <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                Removing...
+              </span>
+            ) : (
+              'Remove'
+            )}
+          </button>
+        );
+      }}
     </CartForm>
   );
 }
@@ -139,7 +230,7 @@ function CartLineUpdateButton({
   children,
   lines,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode | ((fetcher: any) => React.ReactNode);
   lines: CartLineUpdateInput[];
 }) {
   const lineIds = lines.map((line) => line.id);
@@ -151,7 +242,9 @@ function CartLineUpdateButton({
       action={CartForm.ACTIONS.LinesUpdate}
       inputs={{lines}}
     >
-      {children}
+      {(fetcher) => {
+        return typeof children === 'function' ? children(fetcher) : children;
+      }}
     </CartForm>
   );
 }
